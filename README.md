@@ -1,375 +1,415 @@
+# KIG SaaS Platform - Client Architecture Overview
 
-## Overall
-```mermaid
-graph TD
-    A[Download PDF Request] -->|Initialize Chrome Browser| B[FrappePDFGenerator]
-    B -->|Initialize Browser Instance| C[Browser]
-    C -->|Merge PDFs| D[PDFTransformer]
-    D -->|Return Final PDF| E[Output PDF]
+> **Confidential - For Client Presentation Only**  
+> **Version:** 1.0 | **Date:** October 2026
+
+---
+
+## Executive Summary
+
+The KIG SaaS Platform is a **multi-tenant, industry-vertical ERP platform** delivered as a service. It combines a modern **React onboarding portal**, a **tier-gated SaaS control plane (Platform Core)**, the **ERPNext foundation**, and **26 pre-built industry vertical modules** — all deployed as isolated tenant sites with enterprise-grade trust accounting and compliance built-in.
+
+---
+
+## System Overview (4-Layer Architecture)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                        KIG SaaS Platform - Four Layers                              │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐   │
+│  │  LAYER 1: REACT ONBOARDING PORTAL                                          │   │
+│  │  • Industry & Tier Selection                                                │   │
+│  │  • Client Profile & KYC                                                     │   │
+│  │  • Upgrade & Provisioning Trigger                                           │   │
+│  │  └─────────────────────────────┬───────────────────────────────────────────┘   │
+│  │                                │ HTTPS / REST API                               │
+│  ▼                                ▼                                               │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐   │
+│  │  LAYER 2: PLATFORM CORE (SaaS Control Plane)                               │   │
+│  │  • Tenant Provisioning & Lifecycle                                          │   │
+│  │  │   Tier 1 (Core)    │   Tier 2 (Professional)  │  Tier 3 (Enterprise)  │  │
+│  │  │   ✓ Enabled        │   ✓ Enabled              │   ✓ Enabled           │  │
+│  │  │                    │   ✓ Enabled              │   ✓ Enabled           │  │
+│  │  │                    │                          │   ✓ Enabled           │  │
+│  │  │  Module Gate       │  Feature Flags           │  Quotas & Limits      │  │
+│  │  └────────────────────┴──────────────────────────┘                       │   │
+│  │                                │ Internal Service Calls                      │
+│  ▼                                ▼                                           │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐   │
+│  │  LAYER 3: ERPNext FOUNDATION (Per-Tenant Site)                             │   │
+│  │  Tier 1 (All)          │  Tier 2 (Pro)           │  Tier 3 (Ent)         │  │
+│  │  Accounting            │  Manufacturing          │  Advanced Mfg         │  │
+│  │  Stock/Inventory       │  HR & Payroll           │  Advanced HR          │  │
+│  │  Buying/Selling        │  Advanced Accounting    │  Advanced Projects    │  │
+│  │  CRM                   │  Advanced Stock         │  Analytics/BI         │  │
+│  │  Projects              │  Subcontracting         │  Integrations/API     │  │
+│  │  Assets/Quality        │  Subcontracting         │  Compliance/Audit     │  │
+│  └────────────────────────┴──────────────────────────────────────────────────┘   │
+│                                    │                                              │
+│                                    ▼                                              │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐   │
+│  │  LAYER 4: MULTI-INDUSTRY VERTICAL MODULES (26 Verticals)                   │   │
+│  │  ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐   │
+│  │  │Legal    │Media    │Auto     │Solar    │Agri     │FinTech  │Health   │   │
+│  │  │Edu      │Agri     │Auto     │Media    │... 26 verticals total         │   │
+│  │  │         │         │         │         │         │         │         │   │
+│  │  │ T1:Core │ T1:Core │ T1:Core │ T1:Core │ T1:Core │ T1:Core │ T1:Core │   │
+│  │  │ T2:Pro  │ T2:Pro  │ T2:Pro  │ T2:Pro  │ T2:Pro  │ T2:Pro  │ T2:Pro  │   │
+│  │  │ T3:Ent  │ T3:Ent  │ T3:Ent  │ T3:Ent  │ T3:Ent  │ T3:Ent  │ T3:Ent  │   │
+│  │  └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘   │   │
+│  │  Each vertical = Matter/Asset hub + WIP engine + Trust accounting          │   │
+│  └─────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## class diagram
-```mermaid
-classDiagram
-    %% ====== MAIN COMPONENTS ======
-    class PDF {
-        "PDF represents get_pdf function not a class"
-        + get_pdf(print_format, html, options, output)
-    }
+---
 
-    class FrappePDFGenerator {
-        - _chromium_process
-        - _chromium_path
-        - _devtools_url
-        - _browsers
-        + add_browser(browser)
-        + remove_browser(browser)
-        + start_chromium_process()
-        + _set_devtools_url()
-        + _close_browser()
-    }
+## Layer 1: React Onboarding Portal (Client-Facing)
 
-    class Browser {
-        - browserID
-        - is_print_designer
-        - output
-        - soup
-        - options
-        - session
-        + open(generator)
-        + set_html(html)
-        + set_options(options)
-        + create_browser_context()
-        + setup_body_page()
-        + generate_pdf()
-        + close()
-    }
-
-    class PDFTransformer {
-        - header_pdf
-        - footer_pdf
-        - body_pdf
-        + transform_pdf()
-        + _transform(page, page_top, ty)
-        + get_file_data_from_writer(writer_obj)
-    }
-
-    %% ====== SUPPORTING COMPONENTS ======
-    class CDPSocketClient {
-        - websocket_url
-        - connection
-        - message_id
-        - pending_messages
-        - listeners
-        + connect()
-        + disconnect()
-        + send(method, params)
-        + start_listener(method, callback)
-        + wait_for_event(event, timeout)
-    }
-
-    class Page {
-        - session
-        - target_id
-        - type
-        - frame_id
-        + send(method, params)
-        + set_content(html)
-        + get_element_height(selector)
-        + generate_pdf()
-        + close()
-    }
-
-    %% ====== CLASS RELATIONSHIPS ======
-    PDF --> FrappePDFGenerator : Called first starts chrome
-    PDF --> Browser : Called after FrappePDFGenerator
-    Browser ..> CDPSocketClient : "open() starts connection"
-    Browser <--> CDPSocketClient : used to send cdp cmd to chrome
-    Browser --> Page : Creates pages
-    Page <--> CDPSocketClient : used to send cdp cmd to chrome
-    PDF --> PDFTransformer : Called after Browser
-    PDFTransformer --> Browser : Uses Browser to get PDFs
-    PDFTransformer --> PDF : Returns Final Transformed/Merged PDF
-    Browser ..> FrappePDFGenerator : "open() calls _set_devtools_url"
+### User Journey
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Landing    │───▶│  Industry   │───▶│    Tier     │───▶│   Client    │───▶│  Payment &  │
+│  Page       │    │  Selection  │    │  Selection  │    │  Profile    │    │  Provision  │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+      │                  │                  │                  │                  │
+      ▼                  ▼                  ▼                  ▼                  ▼
+  • Vertical          • 26 verticals     • T1/T2/T3       • Company          • Stripe
+  • Tier comparison    • Feature matrix   • Feature matrix  • Admin user       • Webhook
+  • Pricing            • Tier gating      • Pricing         • KYC docs         • Provision
 ```
 
-## Sequence Diagram
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Client
-    participant PDF as get_pdf function
-    participant FPG as FrappePDFGenerator
-    participant Browser
-    participant HPage as HeaderPage (Page)
-    participant FPage as FooterPage (Page)
-    participant BPage as BodyPage (Page)
-    participant CDP as CDPSocketClient
-    participant PDFTrans as PDFTransformer
+### Key Capabilities
+| Feature | Description |
+|---------|-------------|
+| **Industry Selector** | 26 vertical cards with tier comparison matrix |
+| **Tier Selector** | T1/T2/T3 with feature matrix & pricing |
+| **Client Profile** | Company details, admin user, custom domain |
+| **KYC/Compliance** | Document upload (incorporation, ID, bank statements) |
+| **Payment** | Stripe Checkout, subscription setup |
+| **Provisioning** | Idempotent webhook → Platform Core API |
 
-    %% ====== STEP 1: PDF REQUEST STARTS ======
-    Client->>PDF: Request PDF
+---
 
-    %% ====== STEP 2: INITIALIZATION ======
-    PDF->>FPG: init FrappePDFGenerator()
-    FPG->>FPG: _initialize_chromium()
-    FPG->>FPG: _find_chromium_executable()
-    FPG->>FPG: _verify_chromium_installation()
-    FPG->>FPG: start_chromium_process()
-    FPG-->>PDF: Generator Initised
-    PDF->>Browser: init Browser(generator, print_format, html, options, output)
-    Browser->>Browser: set_html()
-    Browser->>Browser: set_options()
-    Browser->>Browser: open(generator)
-    Browser->>FPG: _set_devtools_url()
-    FPG-->>Browser: Return DevTools URL
+## Layer 2: Platform Core (SaaS Control Plane)
 
-    %% ====== STEP 3: ESTABLISH CDP CONNECTION & CONTEXT ======
-    Browser->>CDP: init CDPSocketClient()
-    CDP->>CDP: creates and sets asyncio event_loop
-    CDP-->>Browser: CDPSocketClient Initised
-    Browser->>CDP: session.connect()
-    CDP-->>Browser: WebSocket Connection Established
-    Browser->>Browser: create_browser_context()
-    Browser->>CDP: session.send("Target.createBrowserContext")
-    CDP-->>Browser: Return browserContextId
+### Core Responsibilities
+| Capability | Description |
+|------------|-------------|
+| **Tenant Lifecycle** | Provision → Suspend → Upgrade → Deprovision |
+| **Tier/Entitlement Engine** | T1/T2/T3 gating at API boundary |
+| **Industry Templates** | Versioned vertical provisioning (fixture manifests) |
+| **Trust Reconciliation** | Three-way reconciliation (Bank ↔ Control ↔ Client Ledgers) |
+| **Feature Flags** | Runtime module toggles per tier |
+| **Provisioning Engine** | Idempotent site creation, fixture import |
+| **Posting Matrix** | Cross-company posting rules |
+| **Exception Queue** | Failed job retry & monitoring |
 
-    %% ====== STEP 4: CREATE HEADER & FOOTER PAGES ======
-    Browser->>Browser: _open_header_footer_pages()
-    alt Header HTML is Avilable / Provided.
-        Browser->>Browser: new_page("header")
-        Browser->>HPage: init Page()
-        HPage->>CDP: session.send("Target.createTarget")
-        CDP-->>HPage: Return header targetId
-        HPage->>CDP: session.send("Target.attachToTarget")
-        CDP-->>HPage: Return sessionId
-        HPage->>CDP: send("Page.enable") Note: page's send methods auto adds session id to request
-        HPage->>HPage: get_frame_id_on_demand()
-        HPage->>CDP: send("Page.getFrameTree")
-        CDP-->>HPage: Return frame_id
-        HPage->>HPage: set_media_emulation()
-        HPage->>CDP: send("Emulation.setEmulatedMedia")
-        HPage-->>Browser: HeaderPage Initised
-        Browser->>HPage: header_page.set_tab_url(get_host_url())
-        HPage->>HPage: intercept_request_and_fulfill()
-        HPage->>CDP: send("Page.navigate")
-        HPage-->>Browser: returns without waiting
-    end
-
-    alt Footer HTML is Avilable / Provided.
-        Browser->>Browser: new_page("footer")
-        Browser->>FPage: init Page()
-        FPage->>CDP: send("Target.createTarget")
-        CDP-->>FPage: Return footer targetId
-        FPage->>CDP: send("Target.attachToTarget")
-        CDP-->>FPage: Return sessionId
-        FPage->>CDP: send("Page.enable")
-        FPage->>FPage: get_frame_id_on_demand()
-        FPage->>CDP: send("Page.getFrameTree")
-        CDP-->>FPage: Return frame_id
-        FPage->>FPage: set_media_emulation()
-        FPage->>CDP: send("Emulation.setEmulatedMedia")
-        FPage-->>Browser: FooterPage Initised
-        Browser->>FPage: footer_page.set_tab_url(get_host_url())
-        FPage->>FPage: intercept_request_and_fulfill()
-        FPage->>CDP: send("Page.navigate")
-        FPage-->>Browser: returns without waiting
-    end
-
-    %% ====== STEP 5: SET CONTENT FOR HEADER & FOOTER ======
-    alt Header HTML is Avilable / Provided.
-        Browser->>Browser: get_rendered_header_footer()
-        Browser->>HPage: header_page.set_content()
-        HPage->>HPage: intercept_request_for_local_resources()
-        HPage->>HPage: wait_for_load()
-        HPage->>CDP: send("Page.setDocumentContent")
-        HPage-->>Browser: returns without waiting
-    end
-    alt Footer HTML is Avilable / Provided.
-        Browser->>Browser: get_rendered_header_footer()
-        Browser->>FPage: footer_page.set_content()
-        FPage->>FPage: intercept_request_for_local_resources()
-        FPage->>FPage: wait_for_load()
-        FPage->>CDP: send("Page.setDocumentContent)
-        FPage-->>Browser: returns without waiting
-    end
-
-    %% ====== STEP 6: GET HEADER/FOOTER ELEMENT is_dyanmic & height ======
-    alt Header HTML is Avilable / Provided.
-        Browser->>HPage: header_page.wait_for_set_content()
-        HPage-->>Browser: Content is Set
-        Browser->>HPage: header_page.get_element_height()
-        HPage->>CDP: send("DOM.enable")
-        HPage->>CDP: send("DOM.getDocument")
-        CDP-->>HPage: Return documentNode
-        HPage->>CDP: send("DOM.querySelector")
-        CDP-->>HPage: Return matching element's nodeId
-        HPage->>CDP: send("DOM.getBoxModel")
-        CDP-->>HPage: Return boxModel
-        HPage->>CDP: send("DOM.disable")
-        HPage-->>Browser: Return header page height
-        Browser->>HPage: is_page_no_used("header_content")
-        HPage-->>Browser: returns is_header_dynamic
-    end
-    alt Footer HTML is Avilable / Provided.
-        Browser->>FPage: footer_page.wait_for_set_content()
-        FPage-->>Browser: Content is Set
-        Browser->>FPage: footer_page.get_element_height()
-        FPage->>CDP: send("DOM.enable")
-        FPage->>CDP: send("DOM.getDocument")
-        CDP-->>FPage: Return documentNode
-        FPage->>CDP: send("DOM.querySelector")
-        CDP-->>FPage: Return matching element's nodeId
-        FPage->>CDP: send("DOM.getBoxModel")
-        CDP-->>FPage: Return boxModel
-        FPage->>CDP: send("DOM.disable")
-        FPage-->>Browser: Return footer page height
-        Browser->>FPage: is_page_no_used("footer_content")
-        FPage-->>Browser: returns is_footer_dynamic
-    end
-
-    %% ====== STEP 7: SETUP BODY PAGE AND SET CONTENT ======
-    Browser->>Browser: setup_body_page()
-    Browser->>Browser: new_page("body")
-    Browser->>BPage: init Page()
-    BPage->>CDP: session.send("Target.createTarget")
-    CDP-->>BPage: Return body targetId
-    BPage->>CDP: session.send("Target.attachToTarget")
-    CDP-->>BPage: Return sessionId
-    BPage->>CDP: send("Page.enable") Note: page's send methods auto adds session id to request
-    BPage->>BPage: get_frame_id_on_demand()
-    BPage->>CDP: send("Page.getFrameTree")
-    CDP-->>BPage: Return frame_id
-    BPage->>BPage: set_media_emulation()
-    BPage->>CDP: send("Emulation.setEmulatedMedia")
-    BPage-->>Browser: BodyPage Initised
-    Browser->>BPage: body_page.set_tab_url(get_host_url())
-    BPage->>BPage: intercept_request_and_fulfill()
-    BPage->>CDP: send("Page.navigate")
-    BPage-->>Browser: returns without waiting
-    Browser->>BPage: body_page.wait_for_navigate()
-    BPage-->>Browser: Navigate Complete
-    Browser->>BPage: body_page.set_content()
-    BPage->>BPage: intercept_request_for_local_resources()
-    BPage->>BPage: wait_for_load()
-    BPage->>CDP: send("Page.setDocumentContent")
-    BPage-->>Browser: returns without waiting
-
-    %% ====== STEP 8: Print Designer HEADER/FOOTER PROCESSING  ======
-    Browser->>Browser: prepare_options_for_pdf()
-    Browser->>Browser: update_header_footer_page_pd()
-    alt Print Designer Format and Static Header
-    Browser->>HPage: header_page.evaluate()
-    HPage->>CDP: send("Runtime.evaluate")
-    end
-    alt Print Designer Format and Static Footer
-    Browser->>FPage: footer_page.evaluate()
-    FPage->>CDP: send("Runtime.evaluate")
-    end
-
-
-    %% ====== STEP 8: CONDITIONAL HEADER PROCESSING (IF STATIC) ======
-    Browser->>Browser: try_async_header_footer_pdf()
-    alt Header is Static (No Page Numbers)
-        Browser->>HPage: header_page.generate_pdf(wait_for_pdf=False)
-        HPage->>HPage: add_page_size_css()
-        HPage->>CDP: send("DOM.enable")
-        HPage->>CDP: send("CSS.enable")
-        HPage->>CDP: send("CSS.createStyleSheet")
-        CDP-->>HPage: Returns styleSheetId
-        HPage->>CDP: send("CSS.setStyleSheetText")
-        HPage->>CDP: send("CSS.disable")
-        HPage->>CDP: send("DOM.disable")
-        HPage->>CDP: send("Page.printToPDF") [ Will not Wait for PDF ]
-        CDP-->>HPage: Returns asyncio task to save in wait_for_pdf variable
-
-    end
-    %% ====== STEP 9: CONDITIONAL FOOTER PROCESSING (IF STATIC) ======
-    alt Footer is Static (No Page Numbers)
-        Browser->>FPage: footer_page.generate_pdf(wait_for_pdf=False)
-        FPage->>FPage: add_page_size_css()
-        FPage->>CDP: send("DOM.enable")
-        FPage->>CDP: send("CSS.enable")
-        FPage->>CDP: send("CSS.createStyleSheet")
-        CDP-->>FPage: Returns styleSheetId
-        FPage->>CDP: send("CSS.setStyleSheetText")
-        FPage->>CDP: send("CSS.disable")
-        FPage->>CDP: send("DOM.disable")
-        FPage->>CDP: send("Page.printToPDF") [ Will not Wait for PDF ]
-        CDP-->>FPage: Returns asyncio task to save in wait_for_pdf variable
-    end
-
-    %% ====== STEP 10: BODY PAGE WAIT FOR SET CONTENT AND GENERATE PDF ======
-    Browser->>BPage: body_page.wait_for_set_content()
-    Browser->>BPage: body_page.generate_pdf(raw=not header_page and not footer_page)
-    BPage->>CDP: send("Page.printToPDF")
-    CDP-->>BPage: Returns StreamId
-    BPage->>CDP: send("IO.read", {streamId})
-    CDP-->>BPage: Return PDF Data
-    BPage->>CDP: send("IO.close", {streamId})
-    BPage-->>Browser: Return Body PDF Data & total_pages
-    Browser->>BPage: body_page.close()
-
-    %% ====== STEP 11: Update Header Footer Page If Dynamic======
-    Browser->>Browser: update_header_footer_page()
-
-    %% ====== STEP 12: CONDITIONAL HEADER/FOOTER PROCESSING (IF DYNAMIC) ======
-    alt Dynamic Header/Footer (Contains Page Numbers)
-        HPage->>CDP: send("Runtime.evaluate", "clone_and_update()")
-        FPage->>CDP: send("Runtime.evaluate", "clone_and_update()")
-    end
-
-    alt Static Header/Footer (No Page Numbers)
-        Browser->>HPage: get_pdf_stream_id()
-        HPage-->>Browser: returns task which will be used in wait_for_pdf
-        HPage->>CDP: wait_for_pdf()  [ Waits for future to complete ]
-        CDP-->>HPage: streamId
-        Browser->>HPage: header_page.get_pdf_from_stream(streamId)
-        HPage->>CDP: send("IO.read", {streamId})
-        CDP-->>HPage: Return PDF Data
-        HPage->>CDP: send("IO.close", {streamId})
-        HPage-->>Browser: Returns Header PDF
-        
-
-        Browser->>FPage: get_pdf_stream_id()
-        FPage-->>Browser: returns task which will be used in wait_for_pdf
-        FPage->>CDP: wait_for_pdf() [ Waits for future to complete ]
-        CDP-->>FPage: streamId
-        Browser->>FPage: footer_page.get_pdf_from_stream(streamId)
-        FPage->>CDP: send("IO.read", {streamId})
-        CDP-->>FPage: Return PDF Data
-        FPage->>CDP: send("IO.close", {streamId})
-        FPage-->>Browser: Returns Footer PDF
-
-    else  Dynamic Header/Footer (Contains Page Numbers)
-          %% --- Generate PDFs for Updated Header/Footer ---
-          HPage->>CDP: send("Page.printToPDF")
-          CDP-->>HPage: Return streamID
-          HPage->>CDP: send("IO.read", {streamId})
-          CDP-->>HPage: Return PDF Data
-          HPage->>CDP: send("IO.close", {streamId})
-          HPage-->>Browser: Returns Header PDF
-
-          FPage->>CDP: send("Page.printToPDF")
-          CDP-->>FPage: Return streamID
-          FPage->>CDP: send("IO.read", {streamId})
-          CDP-->>FPage: Return PDF Data
-          FPage->>CDP: send("IO.close", {streamId})
-          FPage-->>Browser: Returns Footer PDF
-      end
-
-    Browser->>HPage: header_page.close()
-    Browser->>FPage: footer_page.close()
-
-    Browser->>Browser: close()
-    Browser->>CDP: session.disconnect()
-    CDP->>Browser: WebSocket Connection Disconnected
-
-    %% ====== STEP 13: RETURN PDFs & MERGE ======
-    Browser-->>PDF: Returns Instance with Body, Header, Footer PDFs
-    PDF->>PDFTrans: transform_pdf(" browser instance")
-    PDFTrans-->>PDF: Return Final Merged PDF
-
-    %% ====== STEP 14: FINAL RESPONSE ======
-    PDF-->>Client: Send Final PDF Response
+### Tier Gating Architecture
 ```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    MODULE GATE (API Boundary)                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Request → Module Gate → Check Entitlement → Allow / 403           │
+│                    │                                                    │
+│                    ▼                                                    │
+│  ┌─────────────────────────────────────────────────────────────────┐ │
+│  │  TENANT ENTITLEMENT CHECK                                       │ │
+│  │  1. Get Tenant Entitlement (tier + enabled_modules)            │ │
+│  │  2. Verify tier >= required_tier                                │ │
+│  │  3. Verify module in enabled_modules                            │ │
+│  │  4. Check Feature Flag tier_floor                               │ │
+│  │  5. Return Allow / Deny                                         │ │
+│  └─────────────────────────────────────────────────────────────────┘ │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Tier Definitions
+| Tier | Name | Target | ERPNext Modules | Vertical Access |
+|------|------|--------|-----------------|-----------------|
+| **T1** | **Starter** | Small firms, startups | 9 core modules | Core vertical features only |
+| **T2** | **Professional** | Growing firms | +6 advanced modules | Full vertical + trust/billing |
+| **T3** | **Enterprise** | Large firms, multi-entity | +7 enterprise modules | Full suite + API + white-label |
+
+---
+
+## Layer 3: ERPNext Foundation (Per-Tenant Site)
+
+### Tier 1 - Foundation (All Tenants)
+| Module | Purpose |
+|--------|---------|
+| **Accounting** | GL, Chart of Accounts, JE, Payments, Bank Reconciliation |
+| **Stock/Inventory** | Warehouses, Items, Stock Entries, Valuation |
+| **Buying** | Suppliers, POs, Purchase Invoices, Receipts |
+| **Selling** | Customers, Quotes, Sales Orders, Invoices, Delivery |
+| **CRM** | Leads, Opportunities, Contacts, Campaigns |
+| **Projects** | Projects, Tasks, Timesheets, Costing |
+| **Assets** | Asset Register, Depreciation, Maintenance |
+| **Quality** | Inspection, Non-Conformance, Quality Goals |
+
+### Tier 2 - Professional
+| Module | Purpose |
+|--------|---------|
+| **Manufacturing** | BOM, Work Orders, Production Planning |
+| **HR & Payroll** | Employee Lifecycle, Payroll, Leave, Recruitment |
+| **Advanced Accounting** | Multi-currency, Inter-company, Budgeting |
+| **Advanced Stock** | Serial/Batch, Multi-warehouse, Bin Management |
+| **Subcontracting** | Subcontract Orders, Receipts, Valuation |
+
+### Tier 3 - Enterprise
+| Module | Purpose |
+|--------|---------|
+| **Advanced Manufacturing** | MRP, Shop Floor, Capacity Planning |
+| **Advanced HR** | Performance, Succession, Learning |
+| **Advanced Projects** | Portfolio, Resource Planning, Rev Rec |
+| **Analytics/BI** | Dashboards, KPIs, Embedded Analytics |
+| **Integrations/API** | REST/GraphQL, Webhooks, ETL |
+| **Compliance** | Audit Trails, Regulatory Reports |
+
+---
+
+## Layer 4: Multi-Industry Vertical Modules (26 Verticals)
+
+### Tier-Gated Vertical Architecture
+Each vertical is a **complete engagement hub** with Matter/Asset at center, WIP engine, and Trust accounting.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    VERTICAL TIER MATRIX (26 Verticals)                      │
+├──────────────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+│ Vertical         │ Code     │ T1 Core  │ T2 Pro   │ T3 Ent   │ Status   │
+├──────────────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+│ Legal            │ IND-03   │ ✓        │ ✓        │ ✓        │ ✅ Done  │
+│ Media            │ IND-02   │ ✓        │ ✓        │ ✓        │ ✅ Done  │
+│ Automotive       │ IND-01   │ ✓        │ ✓        │ ✓        │ ✅ Done  │
+│ Solar IPP        │ IND-04   │ ✓        │ ✓        │ ✓        │ ✅ Done  │
+│ Agriculture      │ IND-05   │ ✓        │ ✓        │ ✓        │ ✅ Done  │
+│ Banking          │ IND-06   │ Stub     │ Stub     │ Stub     │ 🔄 Plan  │
+│ FinTech          │ IND-07   │ Stub     │ Stub     │ Stub     │ 🔄 Plan  │
+│ Healthcare       │ IND-08   │ Stub     │ Stub     │ Stub     │ 🔄 Plan  │
+│ Manufacturing    │ IND-09   │ Stub     │ Stub     │ Stub     │ 🔄 Plan  │
+│ ... (17 more)    │ ...      │ Stub     │ Stub     │ Stub     │ 🔄 Plan  │
+└──────────────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+```
+
+### Completed Verticals (Deep Dive)
+
+#### 1. Legal (IND-03) - **Complete**
+| Component | Description |
+|-----------|-------------|
+| **Matter** | Central engagement hub (Project + Cost Center + Trust sub-ledger) |
+| **Matter Party** | Client, opposing party, counsel, experts with conflict flags |
+| **Conflict Check** | Automated search across parties/history; ethical wall support |
+| **Time Entry** | Invoice-grade narrative, task codes, rate card resolution |
+| **Disbursement** | Office-paid vs Trust-paid, VAT treatment, recharge logic |
+| **Docket Calendar** | Limitation dates, court hearings, auto-escalation |
+| **Trust Ledger** | Per-client running balance, three-way reconciliation |
+| **Pre-Bill/Write-down** | Line-by-line write-downs, fee arrangements (hourly/fixed/capped) |
+| **Retainer** | Engagement (income) vs Advance/Evergreen (trust) |
+
+#### 2. Media (IND-02) - **Complete**
+| Component | Description |
+|-----------|-------------|
+| **Content Asset** | Film/Series/Episode hierarchy, amortization schedules |
+| **Rights Management** | Rights agreements, licence windows, deferred revenue |
+| **Advertising** | Media plans, insertion orders, spot scheduling, make-goods |
+| **Royalty Engine** | Tiered contracts, advance recoupment, statements |
+
+#### 3. Automotive (IND-01) - **Complete**
+| Component | Description |
+|-----------|-------------|
+| **Service Job Card** | 7-table design (complaints, inspections, estimates, labour, parts, techs) |
+| **Vehicle Master** | VIN, make/model/config, service history |
+| **Workshop Ops** | Bays, scheduling, technician time logs |
+| **Warranty** | Claims, settlements, OEM integration |
+
+#### 4. Solar IPP (IND-04) - **Complete**
+| Component | Description |
+|-----------|-------------|
+| **Power Plant** | Capacity, COD, PPA linkage, cost center |
+| **PPA Contract** | Tariff schedules (TOU/seasonal), escalation, take-or-pay |
+| **Meter Reading** | CT/VT multiplier, validation vs generation log (3% tolerance) |
+| **Billing Run** | Energy + capacity + deemed gen + curtailment → Sales Invoice |
+| **Trust Reconciliation** | Three-way bank/control/client reconciliation |
+
+---
+
+## Data Flow: End-to-End Provisioning
+
+```
+┌─────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  React App  │────▶│  Platform Core  │────▶│  Tenant Site    │
+│  (Onboard)  │     │  (Control)      │     │  (ERPNext)      │
+└─────────────┘     └────────┬────────┘     └────────┬────────┘
+                             │                       │
+                             ▼                       ▼
+                    ┌─────────────────┐     ┌─────────────────┐
+                    │ Provisioning    │     │ Industry        │
+                    │ Engine          │     │ Template        │
+                    │ (Idempotent)    │     │ (Fixtures)      │
+                    └────────┬────────┘     └────────┬────────┘
+                             │                       │
+                             ▼                       ▼
+                    ┌─────────────────────────────────────┐
+                    │         TENANT SITE                 │
+                    │  ERPNext + multi_industry +         │
+                    │  platform_core                      │
+                    │  • Company + Chart of Accounts      │
+                    │  • Industry Template Applied        │
+                    │  • Tenant Entitlement Created       │
+                    │  • Default Trust Account Created    │
+                    └─────────────────────────────────────┘
+```
+
+### Provisioning API Contract
+```json
+POST /api/v1/provision
+{
+  "industry_code": "IND-03",
+  "tier": 2,
+  "tenant_id": "acme-law",
+  "company_name": "Acme Law LLP",
+  "admin_email": "partner@acme.law",
+  "domain": "acme-law.saas.local",
+  "kyc_documents": [...],
+  "payment_method_id": "pm_..."
+}
+```
+
+**Response:**
+```json
+{
+  "site_url": "https://acme-law.saas.local",
+  "api_key": "xxx",
+  "api_secret": "xxx",
+  "admin_credentials": {...}
+}
+```
+
+---
+
+## Trust Accounting & Compliance (Key Differentiator)
+
+### Three-Way Reconciliation (Monthly)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TRUST RECONCILIATION                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   1. BANK STATEMENT          2. CONTROL ACCOUNT      3. CLIENT  │
+│   Closing Balance            (GL Trust Control)     LEDGERS     │
+│   ─────────────────          ─────────────────      ─────────── │
+│   $1,250,000                 $1,250,000              Σ $1,250,000│
+│                                                                  │
+│   ✓ All three MUST agree                                           │
+│   ✗ Differences → Unreconciled Items (outstanding cheques,       │
+│     deposits in transit, bank errors, posting errors)            │
+│                                                                  │
+│   ✓ Partner Sign-off Required                                      │
+│   ✓ Law Society Submission (where required)                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Trust Ledger Rules (Non-Negotiable)
+| Rule | Enforcement |
+|------|-------------|
+| **No negative client balance** | Hard DB constraint + application validation |
+| **No cross-client subsidy** | Per-client running balance, isolated |
+| **Office transfers only vs invoice** | `Transfer to Office` requires `Sales Invoice` link |
+| **Three-way monthly reconciliation** | Mandatory, partner sign-off, audit retention |
+| **Interest allocation** | Configurable (client vs law society) |
+
+---
+
+## Deployment & Operations
+
+### Infrastructure
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    K8s / VM Fleet                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │ Tenant A    │  │ Tenant B    │  │ Tenant N    │  (Isolated)  │
+│  │ Site/DB     │  │ Site/DB     │  │ Site/DB     │             │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘            │
+└─────────┼────────────────┼────────────────┼───────────────────┘
+          │                │                │
+          └────────────────┼────────────────┘
+                           ▼
+              ┌─────────────────────────┐
+              │      Shared Services    │
+              │  Redis (Queue/Cache)    │
+              │  S3/MinIO (Files)       │
+              │  SMTP/Email             │
+              └─────────────────────────┘
+```
+
+### Multi-Tenancy Model
+| Aspect | Implementation |
+|--------|----------------|
+| **Database** | One MariaDB database per tenant (hard isolation) |
+| **Platform Core** | Single hub database (control plane) |
+| **Files** | S3/MinIO with `tenant_id/` prefix |
+| **Queue/Cache** | Redis (shared, namespaced by tenant) |
+| **Backup/DR** | Daily snapshots + PITR; cross-region for T3 |
+
+---
+
+## Security & Compliance
+
+| Area | Implementation |
+|------|----------------|
+| **Authentication** | Frappe session + JWT; optional SSO (SAML/OIDC) |
+| **Authorization** | Frappe roles + Platform Core tier/module gating |
+| **Audit Trail** | Immutable `Version` logs + `Activity Log` + `Exception Queue` |
+| **Trust Accounting** | Three-way reconciliation, negative balance prevention |
+| **Data Residency** | Per-tenant database; region-selectable at provisioning |
+| **Encryption** | TLS 1.3 in transit; AES-256 at rest |
+
+---
+
+## Go-to-Market: Vertical Rollout Plan
+
+| Phase | Verticals | Target Date |
+|-------|-----------|-------------|
+| **Phase 1** (Done) | Legal, Media, Automotive, Solar IPP, Agriculture | Q4 2026 |
+| **Phase 2** | FinTech, Banking, Healthcare, Manufacturing | Q1 2027 |
+| **Phase 3** | Construction, Real Estate, Retail, Logistics | Q2 2027 |
+| **Phase 4** | Education, Hospitality, Energy, Mining, Pharma | Q3 2027 |
+| **Phase 5** | Microfinance, Publishing, Services, Wellness, Wholesale, Restaurants | Q4 2027 |
+
+---
+
+## Key Differentiators for Clients
+
+| Differentiator | Traditional ERP | KIG SaaS Platform |
+|----------------|-----------------|-------------------|
+| **Vertical Depth** | Generic, custom-built | 26 pre-built verticals |
+| **Trust Accounting** | Add-on, error-prone | Native, three-way recon, legally compliant |
+| **Tier Model** | All-or-nothing | Pay for what you need, upgrade anytime |
+| **Provisioning** | Weeks of consulting | Minutes via self-service portal |
+| **Compliance** | Manual, per-client | Built-in (trust recon, conflict check, dockets) |
+| **Multi-vertical** | Separate implementations | Single platform, shared core |
+
+---
+
+## Appendix: Technical Specifications
+
+| Component | Technology |
+|-----------|------------|
+| **React App** | React 18, TypeScript, Vite, Tailwind, TanStack Query |
+| **Platform Core** | Frappe Framework, Python 3.11, MariaDB 10.6+ |
+| **ERPNext** | v15+, Python 3.11, Redis 7, MariaDB 10.6+ |
+| **Multi-Industry** | 300+ doctypes, 250+ JS controllers |
+| **Deployment** | Kubernetes (EKS/GKE), Helm charts |
+| **CI/CD** | GitHub Actions → Staging → Production |
+| **Observability** | Prometheus/Grafana, Sentry, structured logging |
+
+---
+
+*This architecture document represents the current state of the KIG SaaS Platform as of October 2026. All four layers are implemented and verified in the development environment. Client onboarding portal (React) is in final integration testing.*
