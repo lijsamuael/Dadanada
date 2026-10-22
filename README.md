@@ -1,4 +1,4 @@
-# Dadanada Platform
+# Dadanada Platform,
 
 **Architecture guide for business stakeholders**
 
@@ -8,9 +8,6 @@
 | Version | 1.0 |
 | Date | October 2026 |
 | Scope | Platform architecture, service plans, industry solutions |
-| Audience | Business owners, operations leaders, finance teams |
-
-> Sections 1–11 are written in plain business language. Section 12 is a technical appendix for the implementation team.
 
 ---
 
