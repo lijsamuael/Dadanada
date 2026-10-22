@@ -18,9 +18,6 @@
 4. [The three service plans](#4-the-three-service-plans)
 5. [The 24 industry solutions](#5-the-24-industry-solutions)
 6. [Industry solutions in detail](#6-industry-solutions-in-detail)
-7. [How money is handled](#7-how-money-is-handled)
-8. [Security, isolation and reliability](#8-security-isolation-and-reliability)
-9. [The technology, briefly](#9-the-technology-briefly)
 10. [Where we are and what comes next](#10-where-we-are-and-what-comes-next)
 11. [Glossary](#11-glossary)
 12. [Technical appendix](#12-technical-appendix)
@@ -462,79 +459,6 @@ Register the patient → book an appointment or consultation → order tests and
 
 ---
 
-## 7. How money is handled
-
-This is the part that matters most to owners and finance teams. Three rules keep the books trustworthy.
-
-### 7.1 One door for money
-
-Every financial event — an invoice, a payment, a royalty accrual, a bed-day charge, a PPA settlement — goes through a single posting service. Individual modules do not write to the ledger in their own way.
-
-```mermaid
-flowchart LR
-    E[Business event<br/>invoice, payment, royalty, bed-day] --> P[Posting service<br/>the single entry point]
-    P --> M[Posting matrix<br/>the rule book]
-    M --> J[Journal entry<br/>debit and credit]
-    J --> G[General ledger<br/>the books of record]
-    G --> R[Reports and statements]
-```
-
-### 7.2 The posting matrix is the rule book
-
-The posting matrix says, for each kind of event, which accounts are debited and credited. Every posting in the code must reference a matrix row. This is checked automatically, so a new feature cannot quietly invent its own accounting.
-
-The practical benefit: two customers in the same industry can have different charts of accounts, and the same event will still post correctly for each of them.
-
-### 7.3 Every posting is safe to retry
-
-Real systems fail mid-way: a network drops, a job restarts. Dadanada gives every posting request an idempotency key. If the same request arrives twice, the second one is recognised and ignored. The result is no duplicate invoices and no double payments after a retry.
-
-### 7.4 Client money is kept separately
-
-For legal practices (and any business that holds client money), trust accounting is not an add-on report. It is a separate set of records with a non-negotiable rule: the bank, the control account and the sum of the client ledgers must agree.
-
-```mermaid
-flowchart LR
-    B[Bank statement<br/>closing balance] --- C[Trust control account<br/>in the ledger]
-    C --- L[Sum of all<br/>client ledgers]
-    B -. must agree .- L
-```
-
-Differences are not hidden. They are recorded as unreconciled items — outstanding cheques, deposits in transit, bank errors or posting errors — and the reconciliation requires a partner sign-off. A client ledger can never go negative, and one client's money can never cover another client's costs.
-
----
-
-## 8. Security, isolation and reliability
-
-| Concern | How it is handled | What it means in practice |
-|---|---|---|
-| **Data isolation** | One site and one database per customer | A customer's records live in their own database. There is no shared table where one customer could see another's data |
-| **Access control** | Roles and permissions, plus the plan check at the point of use | A clerk sees only what their role allows; a plan that is not bought cannot be used even if the screen is reached |
-| **Support access** | Operator accounts are least-privilege and never the built-in administrator | Support can help without holding the keys to everything |
-| **Audit trail** | Version history, activity log and an exception queue | Every change is attributable; failed jobs are visible and retryable |
-| **Backups and recovery** | Daily snapshots; staging for Growth; disaster recovery for Enterprise | The plan determines how quickly a business can be restored |
-| **Encryption** | TLS in transit and encryption at rest | Data is protected on the network and on disk |
-| **Separate environments** | Production only on Essential; staging added on Growth; disaster recovery on Enterprise | Changes can be tested before they reach live data |
-
-The isolation model is deliberate. A shared-database design is cheaper to host, but it makes a single coding mistake a cross-customer incident. A database per customer costs a little more and removes that class of risk.
-
----
-
-## 9. The technology, briefly
-
-| Layer | What runs it | Why it matters to the business |
-|---|---|---|
-| **Customer portal** | React web application | A familiar browser experience for choosing an industry and plan |
-| **Platform Core** | Frappe framework, Python and MariaDB | Creates and manages customer workspaces; holds plans, templates and entitlements |
-| **Foundation** | ERPNext (v15 or later; current build on the v17 development line) | Mature, widely used accounting, sales, purchasing, stock, assets, projects and HR |
-| **Industry solutions** | Frappe applications on the same data model | The vertical and the books share one database, so there is no reconciliation between systems |
-| **Background work** | Redis queues and scheduled jobs | Long tasks such as billing runs and month-end jobs do not block the screen |
-| **Files and reports** | Object storage and the built-in report engine | Documents, exports and management reports |
-| **Deployment** | Linux servers or containers; MariaDB, Redis and object storage | Runs in the cloud or on the customer's own infrastructure |
-
-The choice of a single underlying framework is intentional. The industry records and the accounting records live in the same database and use the same permissions, audit trail and backup. That removes the usual integration project between an industry system and an accounting system.
-
----
 
 ## 10. Where we are and what comes next
 
