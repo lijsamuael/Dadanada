@@ -16,7 +16,6 @@
 
 ## Contents
 
-1. [What Dadanada is](#1-what-dadanada-is)
 2. [The four layers](#2-the-four-layers)
 3. [From sign-up to a working system](#3-from-sign-up-to-a-working-system)
 4. [The three service plans](#4-the-three-service-plans)
@@ -31,26 +30,6 @@
 
 ---
 
-## 1. What Dadanada is
-
-Dadanada is a single business platform that can be set up for many different trades. A law firm, a broadcaster, a car dealership, a solar producer and a school all use the same underlying system, but each sees records and screens built for their own work.
-
-The easiest way to picture it is a fully serviced office building:
-
-- The **front desk** is where a new customer chooses what they need and signs up.
-- The **building manager** prepares a private office, connects the utilities and applies the house rules.
-- The **foundation** is a complete business system: finance, sales, purchasing, stock, people and projects.
-- The **furnished departments** are the industry solutions — the desks, forms and workflows that a particular trade expects to find on day one.
-
-Every customer gets their **own private office**: their own database and their own workspace. Customers never share a table, so one customer's data cannot appear in another customer's screens.
-
-Three ideas run through the whole design:
-
-1. **Start small, grow without moving.** A customer can begin on the entry plan and move up as the business grows. Upgrading switches features on; it does not require a re-implementation or a data migration.
-2. **One rule book for money.** Every financial entry passes through a single posting service that follows a written posting matrix. Modules cannot write to the ledger in their own way.
-3. **Industry depth on a shared core.** Each trade gets its own records and workflows, but they sit on the same proven accounting, stock and people foundation. There is no bolt-on integration between the vertical and the books.
-
----
 
 ## 2. The four layers
 
